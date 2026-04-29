@@ -1,0 +1,1943 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  IMPLICIT ASSOCIATION TEST (IAT) · 内隐联想测验
+  ============================================================
+  范式：Greenwald, McGhee, & Schwartz (1998) — 7-block 标准版
+  评分：Greenwald, Nosek, & Banaji (2003) — D-score 改进算法
+  默认主题：花 vs 虫 + 好词 vs 坏词（中性、效应稳定）
+
+  结构：
+    Block 1 · 20 trials · 类别练习（花 vs 虫）
+    Block 2 · 20 trials · 属性练习（好词 vs 坏词）
+    Block 3 · 20 trials · 联合练习
+    Block 4 · 40 trials · 联合关键
+    Block 5 · 40 trials · 反向类别练习
+    Block 6 · 20 trials · 反向联合练习
+    Block 7 · 40 trials · 反向联合关键
+    总计 200 试次。
+
+  反平衡：每 session 随机决定"兼容先" vs "不兼容先"
+  错误处理：按错键 → 红 × → 必须按对才能继续（built-in penalty）
+  ============================================================
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>内隐联想测验 IAT · 心理学实验</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;700;900&family=Noto+Serif+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ========================================================
+     :root —— 极简学术配色（专为反应时任务调整）
+     ======================================================== */
+  :root {
+    --bg:        #FAFAF7;
+    --paper:     #FFFFFF;
+    --ink:       #0A0A0A;
+    --ink-soft:  #4A4A4A;
+    --ink-faint: #9E9E9E;
+    --rule:      #E5E5E5;
+
+    /* IAT 专用：两套刺激色 —— 让被试一眼分辨"目标维度 vs 属性维度" */
+    --target-color:    #0A0A0A;       /* 目标类别（花/虫）：黑色 */
+    --attribute-color: #2563EB;       /* 属性类别（好/坏词）：蓝色 */
+
+    --error:     #DC2626;
+    --success:   #16A34A;
+    --accent:    #2563EB;
+
+    --font-display: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
+    --font-body:    'Inter', 'Noto Sans SC', system-ui, sans-serif;
+    --font-stim:    'Noto Serif SC', 'Inter', serif;     /* 刺激词用衬线，更易识别中文 */
+    --font-mono:    'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  *:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  html, body {
+    width: 100%; min-height: 100vh; overflow-x: hidden;
+    background: var(--bg); color: var(--ink);
+    font-family: var(--font-body); line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* —— 页面切换 —— */
+  .page {
+    display: none; width: 100%; min-height: 100vh;
+    animation: pageIn 0.45s cubic-bezier(.2,.7,.2,1) both;
+  }
+  .page.active { display: block; }
+  @keyframes pageIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* —— 角标 —— */
+  .corner-mark {
+    position: fixed; top: 22px; left: 26px;
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-faint); z-index: 50; user-select: none;
+  }
+  .corner-mark-right {
+    position: fixed; top: 22px; right: 26px;
+    display: flex; align-items: center; gap: 14px;
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-faint); z-index: 50;
+  }
+
+  /* —— 静音开关 —— */
+  .sound-toggle {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 10px; background: transparent;
+    border: 1px solid var(--ink-faint); color: var(--ink-soft);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.22em; cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, opacity 0.2s;
+  }
+  .sound-toggle:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .sound-toggle.muted { opacity: 0.5; }
+  .sound-wave {
+    display: inline-flex; align-items: center; gap: 2px;
+    width: 13px; height: 11px; justify-content: center;
+  }
+  .sound-wave span {
+    display: block; width: 2px; background: currentColor;
+    border-radius: 1px; animation: wave 1.2s ease-in-out infinite;
+  }
+  .sound-wave span:nth-child(1) { height: 4px; }
+  .sound-wave span:nth-child(2) { height: 9px; animation-delay: 0.2s; }
+  .sound-wave span:nth-child(3) { height: 6px; animation-delay: 0.4s; }
+  @keyframes wave { 0%,100% { transform: scaleY(0.5); } 50% { transform: scaleY(1.0); } }
+  .sound-toggle.muted .sound-wave span { animation: none !important; height: 5px !important; opacity: 0.6; }
+
+  /* —— 通用按钮 —— */
+  .btn {
+    display: inline-flex; align-items: center; gap: 12px;
+    padding: 15px 28px; background: var(--ink); color: var(--paper);
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    letter-spacing: 0.25em; text-transform: uppercase;
+    border: 1px solid var(--ink); cursor: pointer;
+    transition: background 0.18s, color 0.18s, transform 0.12s;
+  }
+  .btn:hover { background: var(--accent); border-color: var(--accent); }
+  .btn:active { transform: translateY(1px); }
+  .btn-arrow::after { content: '→'; font-size: 14px; letter-spacing: 0; }
+  .btn-ghost { background: transparent; color: var(--ink); }
+  .btn-ghost:hover { background: var(--ink); color: var(--paper); }
+
+  /* —— 欢迎页 —— */
+  .welcome-wrap { max-width: 1080px; margin: 0 auto; padding: 88px 56px 64px; }
+  .hero-eyebrow {
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--ink-faint); margin-bottom: 18px;
+  }
+  .hero-title {
+    font-family: var(--font-display); font-weight: 200;
+    font-size: clamp(56px, 9vw, 124px); line-height: 0.98;
+    letter-spacing: -0.045em;
+  }
+  .hero-title em { font-style: italic; font-weight: 300; color: var(--accent); }
+  .hero-subtitle {
+    font-family: var(--font-display); font-weight: 300;
+    font-size: clamp(20px, 2.8vw, 28px);
+    color: var(--ink-soft); margin-top: 26px; max-width: 720px;
+    line-height: 1.5; letter-spacing: -0.01em;
+  }
+
+  .welcome-form {
+    background: var(--paper); padding: 30px 32px;
+    border: 1px solid var(--ink); margin-top: 56px; max-width: 460px;
+  }
+  .form-eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.28em; color: var(--ink-faint); margin-bottom: 8px; text-transform: uppercase; }
+  .form-title { font-family: var(--font-display); font-size: 22px; font-weight: 500; margin-bottom: 22px; letter-spacing: -0.01em; }
+  .field-label { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 8px; }
+  .field-input {
+    width: 100%; padding: 12px 14px; background: transparent;
+    border: none; border-bottom: 2px solid var(--ink);
+    font-family: var(--font-mono); font-size: 16px;
+    color: var(--ink); letter-spacing: 0.05em;
+    transition: border-color 0.15s;
+  }
+  .field-input:focus { outline: none; border-bottom-color: var(--accent); }
+  .field-error { font-family: var(--font-mono); font-size: 11px; color: var(--error); margin-top: 8px; min-height: 16px; letter-spacing: 0.02em; }
+
+  /* —— 说明页 —— */
+  .instr-wrap { max-width: 940px; margin: 0 auto; padding: 88px 56px 64px; }
+  .instr-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;
+    margin: 40px 0 50px;
+  }
+  .instr-card {
+    background: var(--paper); padding: 24px;
+    border: 1px solid var(--rule);
+  }
+  .instr-card-num {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.28em;
+    color: var(--ink-faint); margin-bottom: 10px; text-transform: uppercase;
+  }
+  .instr-card-title { font-family: var(--font-display); font-size: 18px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.01em; }
+  .instr-card p { color: var(--ink-soft); line-height: 1.65; font-size: 14.5px; }
+  .key-chip {
+    display: inline-block; padding: 3px 10px; margin: 0 2px;
+    font-family: var(--font-mono); font-size: 13px; font-weight: 500;
+    background: var(--ink); color: var(--paper);
+    border-radius: 3px; letter-spacing: 0.02em;
+  }
+  .stim-demo {
+    margin-top: 4px; padding: 14px; background: var(--bg);
+    text-align: center; font-family: var(--font-stim);
+    font-size: 26px; border: 1px dashed var(--rule);
+  }
+  .stim-demo .target { color: var(--target-color); }
+  .stim-demo .attribute { color: var(--attribute-color); font-weight: 500; }
+
+  /* —— Block intro 页 —— */
+  .block-intro-wrap {
+    max-width: 1040px; margin: 0 auto; padding: 70px 56px 50px;
+    text-align: center;
+  }
+  .block-intro-eyebrow {
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--ink-faint); margin-bottom: 14px;
+  }
+  .block-intro-title {
+    font-family: var(--font-display); font-weight: 200;
+    font-size: clamp(46px, 6.5vw, 84px); line-height: 1;
+    letter-spacing: -0.04em; margin-bottom: 12px;
+  }
+  .block-intro-title em { font-style: italic; color: var(--accent); }
+  .block-intro-sub {
+    font-family: var(--font-display); font-weight: 400;
+    font-size: clamp(16px, 1.9vw, 19px); color: var(--ink-soft);
+    max-width: 680px; margin: 0 auto 40px; line-height: 1.6;
+  }
+  .key-mapping-display {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 24px;
+    align-items: stretch; max-width: 920px; margin: 0 auto 36px;
+  }
+  .mapping-side {
+    padding: 28px 24px; background: var(--paper);
+    border: 1.5px solid var(--ink);
+    text-align: center;
+    display: flex; flex-direction: column; justify-content: center;
+    min-height: 200px;
+  }
+  .mapping-key {
+    display: inline-block; padding: 8px 22px; margin-bottom: 14px;
+    font-family: var(--font-mono); font-size: 22px; font-weight: 600;
+    background: var(--ink); color: var(--paper);
+    letter-spacing: 0.05em;
+  }
+  .mapping-or {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.32em;
+    color: var(--ink-faint); margin: 8px 0; text-transform: uppercase;
+  }
+  .mapping-cat {
+    font-family: var(--font-display); font-weight: 600; font-size: 22px;
+    line-height: 1.3; letter-spacing: -0.01em;
+  }
+  .mapping-cat.target { color: var(--target-color); }
+  .mapping-cat.attribute { color: var(--attribute-color); }
+  .mapping-divider {
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.28em;
+    color: var(--ink-faint); text-transform: uppercase;
+    writing-mode: vertical-rl;
+  }
+  .block-progress {
+    display: inline-flex; gap: 6px; margin-bottom: 24px;
+  }
+  .block-dot {
+    width: 28px; height: 4px; background: var(--rule);
+    transition: background 0.3s;
+  }
+  .block-dot.done { background: var(--ink-faint); }
+  .block-dot.current { background: var(--ink); }
+
+  .start-prompt {
+    margin-top: 24px;
+    font-family: var(--font-mono); font-size: 12px;
+    letter-spacing: 0.28em; color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+  .start-prompt .key-chip { font-size: 12px; padding: 4px 12px; }
+
+  /* =========================================================
+     主任务页（IAT 专用布局）
+     - 顶部两侧固定的 category labels
+     - 中央刺激词
+     - 底部错误反馈区
+     ========================================================= */
+  #task-page.active {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 100vh; height: 100dvh;
+    max-height: 100vh; max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* HUD */
+  .task-hud {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border-bottom: 1px solid var(--rule); background: var(--paper);
+  }
+  .hud-cell {
+    padding: 14px 22px; border-right: 1px solid var(--rule);
+    position: relative;
+  }
+  .hud-cell:last-child { border-right: none; }
+  .hud-label {
+    font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.28em;
+    color: var(--ink-faint); margin-bottom: 5px; text-transform: uppercase;
+  }
+  .hud-value {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 22px; line-height: 1; letter-spacing: -0.02em;
+  }
+  .hud-value-faint { color: var(--ink-faint); font-weight: 400; font-size: 14px; }
+  .hud-progress { position: absolute; bottom: 0; left: 0; height: 2px; background: var(--accent); transition: width 0.4s; }
+
+  /* 任务舞台：分为 category bar（顶）+ 刺激区（中）+ 反馈区（底） */
+  .task-stage {
+    position: relative;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    overflow: hidden;
+    padding: 24px 32px 20px;
+  }
+
+  /* 顶部类别区——左右两侧固定 */
+  .category-bar {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 40px; padding: 0 8px 4px;
+  }
+  .category-side {
+    display: flex; flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.25;
+  }
+  .category-side.right { align-items: flex-end; text-align: right; }
+  .category-key {
+    display: inline-block; padding: 4px 12px;
+    font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+    background: var(--ink); color: var(--paper);
+    letter-spacing: 0.05em; margin-bottom: 8px;
+  }
+  .category-line {
+    font-family: var(--font-display); font-weight: 600;
+    font-size: clamp(18px, 2.4vw, 24px); letter-spacing: -0.01em;
+    line-height: 1.25;
+  }
+  .category-line.target { color: var(--target-color); }
+  .category-line.attribute { color: var(--attribute-color); }
+  .category-or {
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.3em; color: var(--ink-faint);
+    margin: 3px 0; text-transform: uppercase;
+  }
+
+  /* 刺激区 */
+  .stimulus-area {
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    padding: 20px 12px;
+  }
+  .stimulus {
+    font-family: var(--font-stim); font-weight: 500;
+    font-size: clamp(54px, 8.5vw, 96px);
+    letter-spacing: -0.01em; line-height: 1.1;
+    transition: opacity 0.12s;
+    user-select: none;
+    text-align: center;
+  }
+  .stimulus.target { color: var(--target-color); }
+  .stimulus.attribute { color: var(--attribute-color); }
+  .stimulus.invisible { opacity: 0; }
+
+  /* 错误 X */
+  .error-mark {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: 8%;
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(48px, 7vw, 80px); color: var(--error);
+    line-height: 1;
+    pointer-events: none;
+    opacity: 0; transition: opacity 0.1s;
+  }
+  .error-mark.visible {
+    opacity: 1;
+    animation: errorShake 0.35s ease-out;
+  }
+  @keyframes errorShake {
+    0%   { transform: translate(-50%, 0) scale(0.6); opacity: 0; }
+    30%  { transform: translate(-50%, 0) scale(1.15); opacity: 1; }
+    50%  { transform: translate(-52%, 0) scale(1.0); }
+    70%  { transform: translate(-48%, 0) scale(1.0); }
+    100% { transform: translate(-50%, 0) scale(1.0); opacity: 1; }
+  }
+
+  /* 底部按键提示 + 移动端触屏区 */
+  .key-hint-bar {
+    display: flex; justify-content: space-between;
+    padding: 8px 16px; gap: 32px;
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.22em; color: var(--ink-faint);
+    text-transform: uppercase;
+  }
+  .key-hint-left, .key-hint-right {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .key-hint-right { justify-content: flex-end; }
+
+  /* 手机端触屏区 */
+  .touch-zones {
+    display: none;
+    position: absolute; inset: 0;
+    grid-template-columns: 1fr 1fr;
+    z-index: 5;
+  }
+  .touch-zone {
+    background: transparent;
+    transition: background 0.1s;
+  }
+  .touch-zone:active { background: rgba(37,99,235,0.08); }
+
+  /* —— 中场休息页 —— */
+  .break-wrap {
+    max-width: 720px; margin: 0 auto; padding: 110px 56px 60px;
+    text-align: center;
+  }
+  .break-eyebrow {
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--ink-faint); margin-bottom: 18px;
+  }
+  .break-title {
+    font-family: var(--font-display); font-style: italic; font-weight: 200;
+    font-size: clamp(56px, 8vw, 96px); line-height: 1;
+    letter-spacing: -0.035em; margin-bottom: 24px;
+  }
+  .break-body {
+    color: var(--ink-soft); line-height: 1.75; font-size: 16px;
+    max-width: 480px; margin: 0 auto 38px;
+  }
+
+  /* —— 结果页 —— */
+  .results-wrap { max-width: 1100px; margin: 0 auto; padding: 80px 56px 70px; }
+  .results-title {
+    font-family: var(--font-display); font-style: italic; font-weight: 200;
+    font-size: clamp(56px, 8vw, 110px); line-height: 1;
+    letter-spacing: -0.035em; margin-bottom: 14px;
+  }
+  .results-sub {
+    color: var(--ink-soft); font-size: 16px; margin-bottom: 44px;
+  }
+
+  .d-score-card {
+    background: var(--ink); color: var(--paper);
+    padding: 36px 40px; margin-bottom: 32px;
+    display: grid; grid-template-columns: 1fr 1.4fr; gap: 36px;
+    align-items: start;
+  }
+  .d-score-eyebrow {
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.32em; color: rgba(255,255,255,0.5);
+    margin-bottom: 14px; text-transform: uppercase;
+  }
+  .d-score-value {
+    font-family: var(--font-display); font-weight: 200; font-style: italic;
+    font-size: clamp(72px, 9vw, 116px); line-height: 1;
+    letter-spacing: -0.04em; color: var(--paper);
+  }
+  .d-score-value.warm { color: #FFA94D; }
+  .d-score-value.cool { color: #74C0FC; }
+  .d-score-interp-title {
+    font-family: var(--font-display); font-weight: 500; font-size: 22px;
+    letter-spacing: -0.01em; margin-bottom: 12px;
+  }
+  .d-score-interp-body {
+    color: rgba(255,255,255,0.78); line-height: 1.7; font-size: 14.5px;
+  }
+  .d-score-scale {
+    margin-top: 18px; padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.18);
+    font-family: var(--font-mono); font-size: 10.5px;
+    letter-spacing: 0.18em; color: rgba(255,255,255,0.55);
+    line-height: 1.8;
+  }
+
+  .results-summary {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+    margin-bottom: 40px;
+  }
+  .summary-card {
+    padding: 22px; background: var(--paper); border: 1px solid var(--rule);
+  }
+  .summary-label {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.28em;
+    color: var(--ink-faint); margin-bottom: 8px; text-transform: uppercase;
+  }
+  .summary-value {
+    font-family: var(--font-display); font-weight: 400; font-size: 32px;
+    line-height: 1; letter-spacing: -0.02em;
+  }
+  .summary-value-sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-faint); margin-top: 6px; letter-spacing: 0.05em;
+  }
+
+  /* RT 折线图 */
+  .rt-chart-wrap {
+    background: var(--paper); border: 1px solid var(--rule);
+    padding: 28px 32px; margin-bottom: 32px;
+  }
+  .chart-title {
+    font-family: var(--font-display); font-weight: 500; font-size: 18px;
+    letter-spacing: -0.01em; margin-bottom: 4px;
+  }
+  .chart-sub {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.22em;
+    color: var(--ink-faint); margin-bottom: 22px; text-transform: uppercase;
+  }
+  #rtChart {
+    width: 100%; height: 260px; display: block;
+  }
+
+  .results-actions {
+    display: flex; gap: 16px; justify-content: flex-end; flex-wrap: wrap;
+  }
+
+  /* =========================================================
+     RESPONSIVE
+     ========================================================= */
+  @media (max-width: 960px) {
+    .welcome-wrap, .instr-wrap, .results-wrap, .break-wrap, .block-intro-wrap {
+      padding-left: 32px; padding-right: 32px;
+    }
+    .instr-grid { grid-template-columns: 1fr; }
+    .results-summary { grid-template-columns: repeat(2, 1fr); }
+    .d-score-card { grid-template-columns: 1fr; gap: 24px; }
+    .key-mapping-display { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .mapping-divider { display: none; }
+    .task-hud { grid-template-columns: repeat(2, 1fr); }
+    .hud-cell { border-bottom: 1px solid var(--rule); }
+    .hud-cell:nth-child(2) { border-right: none; }
+    .hud-cell:nth-child(3), .hud-cell:nth-child(4) { border-bottom: none; }
+  }
+
+  @media (max-width: 640px) {
+    .corner-mark { top: 12px; left: 14px; font-size: 9.5px; }
+    .corner-mark-right { top: 12px; right: 14px; gap: 6px; }
+    .corner-mark-right > span:first-child { display: none; }
+    .sound-toggle { padding: 4px 8px; font-size: 9.5px; }
+
+    .welcome-wrap, .instr-wrap, .results-wrap, .break-wrap, .block-intro-wrap {
+      padding: 56px 18px 40px;
+    }
+    .hero-title { font-size: 50px !important; }
+    .hero-subtitle { font-size: 17px; margin-top: 18px; }
+    .welcome-form { padding: 22px 18px; margin-top: 36px; }
+
+    .instr-card { padding: 18px; }
+    .instr-card-title { font-size: 16px; }
+    .instr-card p { font-size: 14px; }
+
+    /* Block intro 在手机端 */
+    .key-mapping-display { grid-template-columns: 1fr; gap: 12px; }
+    .mapping-side { min-height: 0; padding: 18px; }
+    .mapping-key { font-size: 18px; padding: 6px 16px; }
+    .mapping-cat { font-size: 18px; }
+
+    /* 任务页 */
+    .task-hud { grid-template-columns: 1fr 1fr; }
+    .hud-cell:nth-child(1) { display: none; }
+    .hud-cell { padding: 8px 12px; }
+    .hud-value { font-size: 18px; }
+    .hud-label { font-size: 8.5px; }
+
+    .task-stage { padding: 12px 14px 14px; }
+    .category-bar { gap: 14px; padding: 0 2px; }
+    .category-key { font-size: 10px; padding: 2px 8px; margin-bottom: 5px; }
+    .category-line { font-size: 14px; }
+    .category-or { font-size: 9px; margin: 1px 0; }
+
+    .stimulus { font-size: 44px; }
+
+    /* 隐藏键盘提示，启用触屏 */
+    .key-hint-bar { display: none; }
+    .touch-zones { display: grid; }
+
+    .results-summary { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .summary-card { padding: 16px; }
+    .summary-value { font-size: 26px; }
+
+    .d-score-card { padding: 24px 22px; }
+    .rt-chart-wrap { padding: 18px; }
+
+    .results-actions { flex-direction: column; }
+    .results-actions .btn { width: 100%; justify-content: center; }
+    .results-title { font-size: 50px !important; }
+    .break-title { font-size: 50px !important; }
+  }
+
+  @media (hover: none) {
+    .btn:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  }
+
+  ::selection { background: var(--accent); color: var(--paper); }
+</style>
+</head>
+<body>
+
+<!-- 角标 -->
+<div class="corner-mark">IAT · 2026</div>
+<div class="corner-mark-right">
+  <span>EXPERIMENTAL PSYCHOLOGY</span>
+  <button class="sound-toggle" id="soundToggle" type="button" aria-label="切换音效" title="切换音效（M 键）">
+    <span class="sound-wave"><span></span><span></span><span></span></span>
+    <span class="sound-state">ON</span>
+  </button>
+</div>
+
+
+<!-- ============ 页面 1 · WELCOME ============ -->
+<section class="page active" id="welcome-page">
+  <div class="welcome-wrap">
+    <div class="hero-eyebrow">— Implicit Association Test · No. 01</div>
+    <h1 class="hero-title">内隐<br/><em>联想测验</em>.</h1>
+    <p class="hero-subtitle">
+      这是一项测量"无意识联想强度"的经典任务。<br/>
+      您将通过键盘对一组词语进行快速分类，
+      系统会通过反应时间的微小差异，
+      推断您头脑中两组概念的内隐联结强度。
+    </p>
+
+    <div class="welcome-form">
+      <div class="form-eyebrow">PARTICIPANT REGISTRATION</div>
+      <h2 class="form-title">请输入被试编号</h2>
+      <label class="field-label" for="participantInput">Participant ID</label>
+      <input type="text" id="participantInput" class="field-input" placeholder="例如 P001" maxlength="40" autocomplete="off" spellcheck="false" />
+      <div class="field-error" id="idError"></div>
+      <button class="btn btn-arrow" id="toInstructionsBtn" style="margin-top:24px; width:100%; justify-content:center;">
+        Begin · 继续
+      </button>
+    </div>
+
+    <p style="margin-top:48px; font-family:var(--font-mono); font-size:11px; letter-spacing:0.18em; color:var(--ink-faint); line-height:1.9;">
+      预计用时约 8–12 分钟  ·  共 7 个 block，200 试次<br/>
+      Greenwald, McGhee &amp; Schwartz (1998)  ·  D-score: Greenwald, Nosek &amp; Banaji (2003)
+    </p>
+  </div>
+</section>
+
+
+<!-- ============ 页面 2 · INSTRUCTIONS ============ -->
+<section class="page" id="instructions-page">
+  <div class="instr-wrap">
+    <div class="hero-eyebrow">— No. 02 · Instructions</div>
+    <h1 class="hero-title" style="font-style:italic;">How it works.</h1>
+    <p style="margin: 20px 0 0; color: var(--ink-soft); max-width: 640px; line-height: 1.7;">
+      整个实验分为 7 个阶段（block），每个 block 开始前会告诉您此阶段的分类规则。
+      请<strong>尽快又尽量准确</strong>地完成分类——速度和准确率同样重要。
+    </p>
+
+    <div class="instr-grid">
+      <div class="instr-card">
+        <div class="instr-card-num">— 01</div>
+        <div class="instr-card-title">两个按键</div>
+        <p>左侧类别按 <span class="key-chip">E</span>　右侧类别按 <span class="key-chip">I</span><br/>
+        手机端可直接点击屏幕<strong>左半边</strong>或<strong>右半边</strong>。</p>
+      </div>
+      <div class="instr-card">
+        <div class="instr-card-num">— 02</div>
+        <div class="instr-card-title">两种刺激</div>
+        <p>屏幕中央会出现一个词。<br/>
+        <strong>黑色</strong>词来自<strong>目标类别</strong>（如花、虫的名字），
+        <strong style="color:var(--attribute-color);">蓝色</strong>词来自<strong>属性类别</strong>（好词、坏词）。</p>
+        <div class="stim-demo">
+          <span class="target">玫瑰</span> &nbsp; <span class="attribute">快乐</span>
+        </div>
+      </div>
+      <div class="instr-card">
+        <div class="instr-card-num">— 03</div>
+        <div class="instr-card-title">出错怎么办</div>
+        <p>按错键时屏幕下方会出现<strong style="color:var(--error);">红色 ✕</strong>。
+        请按下<strong>正确</strong>的那个键，错误标记才会消失，进入下一题。</p>
+      </div>
+      <div class="instr-card">
+        <div class="instr-card-num">— 04</div>
+        <div class="instr-card-title">尽快但别紧张</div>
+        <p>反应时差异是分析的核心，但不要"乱按"——错误率太高会污染数据。
+        每个 block 之间有 block 间隔提示，看清规则再开始。</p>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end;">
+      <button class="btn btn-arrow" id="toTaskBtn">Start Experiment · 开始</button>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============ 页面 2.5 · BLOCK INTRO ============ -->
+<section class="page" id="block-intro-page">
+  <div class="block-intro-wrap">
+    <div class="block-progress" id="blockProgress">
+      <!-- 7 dots, 由 JS 填充 -->
+    </div>
+    <div class="block-intro-eyebrow" id="blockIntroEyebrow">— Block 1 of 7</div>
+    <h2 class="block-intro-title" id="blockIntroTitle">Block <em>One</em>.</h2>
+    <p class="block-intro-sub" id="blockIntroSub">看到屏幕上的词，按下对应的键。请尽快又尽量准确地分类。</p>
+
+    <div class="key-mapping-display">
+      <div class="mapping-side">
+        <span class="mapping-key">E</span>
+        <span class="mapping-or">左侧 · LEFT</span>
+        <div id="mappingLeft">
+          <div class="mapping-cat target">花</div>
+        </div>
+      </div>
+      <div class="mapping-divider">VS</div>
+      <div class="mapping-side">
+        <span class="mapping-key">I</span>
+        <span class="mapping-or">右侧 · RIGHT</span>
+        <div id="mappingRight">
+          <div class="mapping-cat target">虫</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="start-prompt">
+      <span>按 <span class="key-chip">SPACE</span> 或 <span class="key-chip">点击下方</span> 开始</span>
+    </div>
+    <div style="margin-top: 28px;">
+      <button class="btn btn-arrow" id="startBlockBtn">Start Block · 开始</button>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============ 页面 3 · TASK ============ -->
+<section class="page" id="task-page">
+  <div class="task-hud">
+    <div class="hud-cell">
+      <div class="hud-label">Participant</div>
+      <div class="hud-value" id="hudPid" style="font-size:13px;">—</div>
+    </div>
+    <div class="hud-cell">
+      <div class="hud-label">Trial</div>
+      <div class="hud-value">
+        <span id="hudTrial">1</span><span class="hud-value-faint"> / <span id="hudTotal">0</span></span>
+      </div>
+      <div class="hud-progress" id="hudProgress" style="width:0%"></div>
+    </div>
+    <div class="hud-cell">
+      <div class="hud-label">Block</div>
+      <div class="hud-value">
+        <span id="hudBlock">1</span><span class="hud-value-faint"> / 7</span>
+      </div>
+    </div>
+    <div class="hud-cell">
+      <div class="hud-label">Errors · 错误</div>
+      <div class="hud-value" id="hudErrors">0</div>
+    </div>
+  </div>
+
+  <div class="task-stage">
+    <!-- 顶部类别区 -->
+    <div class="category-bar">
+      <div class="category-side left">
+        <span class="category-key">E</span>
+        <div id="catLeftFirst" class="category-line target">花</div>
+        <div id="catLeftOr" class="category-or" style="display:none;">or 或</div>
+        <div id="catLeftSecond" class="category-line attribute" style="display:none;">好词</div>
+      </div>
+      <div class="category-side right">
+        <span class="category-key">I</span>
+        <div id="catRightFirst" class="category-line target">虫</div>
+        <div id="catRightOr" class="category-or" style="display:none;">or 或</div>
+        <div id="catRightSecond" class="category-line attribute" style="display:none;">坏词</div>
+      </div>
+    </div>
+
+    <!-- 中央刺激 -->
+    <div class="stimulus-area" id="stimulusArea">
+      <div class="stimulus target" id="stimulus">—</div>
+      <div class="error-mark" id="errorMark">✕</div>
+    </div>
+
+    <!-- 底部按键提示（手机隐藏，由 .touch-zones 接管） -->
+    <div class="key-hint-bar">
+      <div class="key-hint-left">
+        <span class="key-chip">E</span>
+        <span>左侧 / Left</span>
+      </div>
+      <div class="key-hint-right">
+        <span>Right / 右侧</span>
+        <span class="key-chip">I</span>
+      </div>
+    </div>
+
+    <!-- 手机触屏区（覆盖整个 stage） -->
+    <div class="touch-zones" id="touchZones">
+      <div class="touch-zone" data-side="left"></div>
+      <div class="touch-zone" data-side="right"></div>
+    </div>
+  </div>
+
+  <!-- 任务页底部留空（按键反馈提示已经够了） -->
+  <div></div>
+</section>
+
+
+<!-- ============ 中场休息 ============ -->
+<section class="page" id="break-page">
+  <div class="break-wrap">
+    <div class="break-eyebrow">— HALFTIME · 中场休息</div>
+    <h2 class="break-title">Take a breath.</h2>
+    <p class="break-body">
+      您已完成前半部分。<br/>
+      接下来的 block 会切换分类规则——请仔细看下个 block 开始前的说明。
+    </p>
+    <button class="btn btn-arrow" id="continueBreakBtn">Continue · 继续</button>
+  </div>
+</section>
+
+
+<!-- ============ 页面 4 · RESULTS ============ -->
+<section class="page" id="results-page">
+  <div class="results-wrap">
+    <div class="hero-eyebrow">— No. 07 · Results</div>
+    <h1 class="results-title">Well done.</h1>
+    <p class="results-sub">实验结束 · 数据汇总 · 您可以导出 CSV 进一步分析</p>
+
+    <!-- D-score 主卡 -->
+    <div class="d-score-card">
+      <div>
+        <div class="d-score-eyebrow">D-Score · Greenwald 2003</div>
+        <div class="d-score-value" id="dScoreValue">+0.00</div>
+        <div class="d-score-scale" id="dScoreScale">
+          |D| &lt; 0.15 &nbsp; 几乎无偏好<br/>
+          |D| 0.15 – 0.35 &nbsp; 轻度偏好<br/>
+          |D| 0.35 – 0.65 &nbsp; 中等偏好<br/>
+          |D| ≥ 0.65 &nbsp; 强烈偏好
+        </div>
+      </div>
+      <div>
+        <div class="d-score-eyebrow">Interpretation · 解读</div>
+        <div class="d-score-interp-title" id="dInterpTitle">—</div>
+        <div class="d-score-interp-body" id="dInterpBody">—</div>
+      </div>
+    </div>
+
+    <!-- 4 个汇总指标 -->
+    <div class="results-summary">
+      <div class="summary-card">
+        <div class="summary-label">Compatible RT · 兼容</div>
+        <div class="summary-value" id="sumCompatRT">—</div>
+        <div class="summary-value-sub">ms</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Incompatible RT · 不兼容</div>
+        <div class="summary-value" id="sumIncompatRT">—</div>
+        <div class="summary-value-sub">ms</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">RT Difference · 差值</div>
+        <div class="summary-value" id="sumRTDiff">—</div>
+        <div class="summary-value-sub">ms</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Accuracy · 正确率</div>
+        <div class="summary-value" id="sumAcc">—</div>
+        <div class="summary-value-sub">across all trials</div>
+      </div>
+    </div>
+
+    <!-- 各 block 平均 RT 折线图 -->
+    <div class="rt-chart-wrap">
+      <div class="chart-title">每 Block 平均反应时</div>
+      <div class="chart-sub">— mean rt by block · including error trials (penalty applied)</div>
+      <svg id="rtChart" viewBox="0 0 800 260" preserveAspectRatio="none"></svg>
+    </div>
+
+    <div class="results-actions">
+      <button class="btn btn-ghost" id="restartBtn">Restart · 重新开始</button>
+      <button class="btn btn-arrow" id="exportBtn">Export CSV · 导出数据</button>
+    </div>
+  </div>
+</section>
+
+
+<script>
+(function () {
+  'use strict';
+
+  /* =====================================================
+     CONFIG —— 所有可调实验参数
+     研究者改参数只需要看这一段
+     ===================================================== */
+  const CONFIG = {
+    // —— 7-block 结构（Greenwald, Nosek, & Banaji 2003 标准）
+    BLOCKS: [
+      { id: 1, role: 'target_practice',             trials: 20, label: '类别练习'      },
+      { id: 2, role: 'attribute_practice',          trials: 20, label: '属性练习'      },
+      { id: 3, role: 'combined_practice',           trials: 20, label: '联合练习'      },
+      { id: 4, role: 'combined_critical',           trials: 40, label: '联合关键'      },
+      { id: 5, role: 'reversed_target_practice',    trials: 40, label: '反向类别练习'  },
+      { id: 6, role: 'reversed_combined_practice',  trials: 20, label: '反向联合练习'  },
+      { id: 7, role: 'reversed_combined_critical',  trials: 40, label: '反向联合关键'  }
+    ],
+
+    // —— 时间参数
+    ITI_MS:        300,    // 试次间隔
+    MAX_RT_MS:     10000,  // 超过此时间的试次从 D-score 计算中剔除
+    MIN_RT_MS:     300,    // < 300ms 视为"按键过快"，仅标注
+
+    // —— 主题：花 vs 虫 + 好词 vs 坏词
+    //   target1 与 attr1 的配对默认视为"兼容"（基于一般文化预期）
+    //   修改主题：替换下面 8 个 *_items 数组即可
+    TOPIC: {
+      target1_label: '花',
+      target1_items: ['玫瑰','百合','郁金香','雏菊','兰花','水仙','牡丹','莲花'],
+      target2_label: '虫',
+      target2_items: ['蜘蛛','蟑螂','蚊子','马蜂','苍蝇','毛毛虫','蜈蚣','臭虫'],
+      attr1_label:   '好词',
+      attr1_items:   ['快乐','和平','欢笑','友谊','礼物','温暖','阳光','甜蜜'],
+      attr2_label:   '坏词',
+      attr2_items:   ['痛苦','仇恨','悲伤','灾难','丑陋','邪恶','可怕','肮脏'],
+      // 心理学解读：D > 0 → 偏好 target1（花）；D < 0 → 偏好 target2（虫）
+      target1_full:  '花朵',
+      target2_full:  '昆虫'
+    }
+  };
+
+  /* =====================================================
+     STATE
+     ===================================================== */
+  const state = {
+    participantId:            '',
+    blockOrder:               '',     // 'compatible_first' | 'incompatible_first'
+
+    currentBlockIdx:          0,      // 0..6
+    currentTrialIdxInBlock:   0,
+    trialsForBlock:           [],
+    currentTrial:             null,
+
+    locked:                   false,
+    stimulusOnsetTs:          0,
+    firstResponseTs:          0,
+    firstResponseSide:        null,
+    errorCountInTrial:        0,
+
+    expStartTs:               0,
+    blockStartTs:             0,
+
+    trials:                   [],     // 完整试次记录（200 行）
+    keyEvents:                [],     // 原子级按键事件
+    blockMeta:                []      // 每 block 的元数据 / 平均 RT
+  };
+
+  const $ = (sel) => document.querySelector(sel);
+
+  function showPage(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0, 0);
+  }
+
+  /* =====================================================
+     UTIL: Fisher-Yates 洗牌
+     ===================================================== */
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  /* =====================================================
+     AUDIO —— 仅错误反馈与 block 完成
+     IAT 经典版不在每试次响声，避免强化某一方向
+     ===================================================== */
+  let audioCtx = null;
+  let soundEnabled = true;
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch (e) { return null; }
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function playWrong() {
+    if (!soundEnabled) return;
+    const ctx = ensureAudio(); if (!ctx) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator(); osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(220, t);
+    osc.frequency.exponentialRampToValueAtTime(110, t + 0.22);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.13, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.28);
+  }
+
+  function playLevelUp() {
+    if (!soundEnabled) return;
+    const ctx = ensureAudio(); if (!ctx) return;
+    const t = ctx.currentTime;
+    [523, 659, 784, 1047].forEach((freq, i) => {
+      const osc = ctx.createOscillator(); osc.type = 'sine';
+      osc.frequency.value = freq;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t + i * 0.07);
+      g.gain.linearRampToValueAtTime(0.10, t + i * 0.07 + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.07 + 0.18);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(t + i * 0.07); osc.stop(t + i * 0.07 + 0.2);
+    });
+  }
+
+  function setSoundEnabled(on) {
+    soundEnabled = on;
+    const btn = $('#soundToggle');
+    btn.classList.toggle('muted', !on);
+    btn.querySelector('.sound-state').textContent = on ? 'ON' : 'OFF';
+    if (on) ensureAudio();
+  }
+  $('#soundToggle').addEventListener('click', () => setSoundEnabled(!soundEnabled));
+
+  /* =====================================================
+     BLOCK MAPPING —— 给定 blockIdx + blockOrder 返回左右分类
+     ===================================================== */
+  function getBlockMapping(blockIdx) {
+    const compFirst = (state.blockOrder === 'compatible_first');
+    const block     = CONFIG.BLOCKS[blockIdx];
+
+    // 是否为前半（B1-4）—— 决定 target 映射是否反转
+    const isFirstHalf = blockIdx < 4;
+
+    let targetLeft, targetRight;
+    if (compFirst === isFirstHalf) {
+      // compFirst 且前半，或 !compFirst 且后半 —— 都用 target1 在左
+      targetLeft = 'target1'; targetRight = 'target2';
+    } else {
+      targetLeft = 'target2'; targetRight = 'target1';
+    }
+
+    // attribute 映射固定（attr1 在左、attr2 在右）
+    const attrLeft  = 'attr1';
+    const attrRight = 'attr2';
+
+    // 该 block 包含哪些刺激类型
+    let useTargets = false, useAttributes = false, isCombined = false;
+    switch (block.role) {
+      case 'target_practice':
+      case 'reversed_target_practice':
+        useTargets = true; break;
+      case 'attribute_practice':
+        useAttributes = true; break;
+      case 'combined_practice':
+      case 'combined_critical':
+      case 'reversed_combined_practice':
+      case 'reversed_combined_critical':
+        useTargets = true; useAttributes = true; isCombined = true; break;
+    }
+
+    // 兼容性（对联合 block 才有意义）
+    //   定义：target1 与 attr1 在同侧 = 兼容
+    let compatibility = null;
+    if (isCombined) {
+      compatibility = (targetLeft === 'target1') ? 'compatible' : 'incompatible';
+    }
+
+    return {
+      blockIdx, role: block.role, label: block.label,
+      targetLeft, targetRight,
+      attrLeft,   attrRight,
+      useTargets, useAttributes, isCombined,
+      compatibility
+    };
+  }
+
+  /* =====================================================
+     TRIAL GENERATION
+     ===================================================== */
+  function generateTrialsForBlock(blockIdx) {
+    const m     = getBlockMapping(blockIdx);
+    const block = CONFIG.BLOCKS[blockIdx];
+    const T     = CONFIG.TOPIC;
+    const total = block.trials;
+    const trials = [];
+
+    function pickItems(catKey, n) {
+      const pool = T[catKey + '_items'];
+      const out = [];
+      // 平衡采样：循环 pool 直到取够 n 个
+      const shuffled = shuffle(pool.slice());
+      for (let i = 0; i < n; i++) {
+        out.push(shuffled[i % shuffled.length]);
+      }
+      return shuffle(out);
+    }
+
+    if (m.isCombined) {
+      // 一半 target、一半 attribute，交替呈现（T-A-T-A-...）
+      const half = total / 2;
+      const halfPerCat = half / 2;
+
+      // 目标试次：target1 / target2 各 halfPerCat
+      const targetTrials = [
+        ...pickItems('target1', halfPerCat).map(w => ({
+          type:'target', category:'target1', word:w,
+          correctSide: m.targetLeft === 'target1' ? 'left' : 'right'
+        })),
+        ...pickItems('target2', halfPerCat).map(w => ({
+          type:'target', category:'target2', word:w,
+          correctSide: m.targetLeft === 'target2' ? 'left' : 'right'
+        }))
+      ];
+      shuffle(targetTrials);
+
+      // 属性试次
+      const attrTrials = [
+        ...pickItems('attr1', halfPerCat).map(w => ({
+          type:'attribute', category:'attr1', word:w,
+          correctSide: m.attrLeft === 'attr1' ? 'left' : 'right'
+        })),
+        ...pickItems('attr2', halfPerCat).map(w => ({
+          type:'attribute', category:'attr2', word:w,
+          correctSide: m.attrLeft === 'attr2' ? 'left' : 'right'
+        }))
+      ];
+      shuffle(attrTrials);
+
+      // 交替合并
+      for (let i = 0; i < half; i++) {
+        trials.push(targetTrials[i]);
+        trials.push(attrTrials[i]);
+      }
+    } else if (m.useTargets) {
+      const half = total / 2;
+      const t1 = pickItems('target1', half).map(w => ({
+        type:'target', category:'target1', word:w,
+        correctSide: m.targetLeft === 'target1' ? 'left' : 'right'
+      }));
+      const t2 = pickItems('target2', half).map(w => ({
+        type:'target', category:'target2', word:w,
+        correctSide: m.targetLeft === 'target2' ? 'left' : 'right'
+      }));
+      trials.push(...t1, ...t2);
+      shuffle(trials);
+    } else if (m.useAttributes) {
+      const half = total / 2;
+      const a1 = pickItems('attr1', half).map(w => ({
+        type:'attribute', category:'attr1', word:w,
+        correctSide: m.attrLeft === 'attr1' ? 'left' : 'right'
+      }));
+      const a2 = pickItems('attr2', half).map(w => ({
+        type:'attribute', category:'attr2', word:w,
+        correctSide: m.attrLeft === 'attr2' ? 'left' : 'right'
+      }));
+      trials.push(...a1, ...a2);
+      shuffle(trials);
+    }
+
+    return trials;
+  }
+
+  /* =====================================================
+     PAGE 1 → 2
+     ===================================================== */
+  $('#toInstructionsBtn').addEventListener('click', () => {
+    const v = $('#participantInput').value.trim();
+    const errEl = $('#idError');
+    if (!v) { errEl.textContent = '请输入被试编号'; $('#participantInput').focus(); return; }
+    if (v.length > 40) { errEl.textContent = '编号过长（最多 40 字符）'; return; }
+    errEl.textContent = '';
+    state.participantId = v;
+    showPage('instructions-page');
+  });
+  $('#participantInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') $('#toInstructionsBtn').click();
+  });
+
+  /* =====================================================
+     PAGE 2 → BLOCK INTRO (准备开始实验)
+     ===================================================== */
+  $('#toTaskBtn').addEventListener('click', () => {
+    // 反平衡：每个 session 随机决定 compatible_first 或 incompatible_first
+    state.blockOrder       = Math.random() < 0.5 ? 'compatible_first' : 'incompatible_first';
+    state.currentBlockIdx  = 0;
+    state.currentTrialIdxInBlock = 0;
+    state.trials           = [];
+    state.keyEvents        = [];
+    state.blockMeta        = [];
+    state.expStartTs       = Date.now();
+
+    $('#hudPid').textContent = state.participantId;
+    showBlockIntro();
+  });
+
+  /* =====================================================
+     BLOCK INTRO
+     ===================================================== */
+  function showBlockIntro() {
+    const blockIdx = state.currentBlockIdx;
+    const m        = getBlockMapping(blockIdx);
+    const T        = CONFIG.TOPIC;
+
+    // 进度点
+    const progEl = $('#blockProgress');
+    progEl.innerHTML = '';
+    for (let i = 0; i < CONFIG.BLOCKS.length; i++) {
+      const dot = document.createElement('span');
+      dot.className = 'block-dot' + (i < blockIdx ? ' done' : (i === blockIdx ? ' current' : ''));
+      progEl.appendChild(dot);
+    }
+
+    $('#blockIntroEyebrow').textContent = `— Block ${blockIdx + 1} of ${CONFIG.BLOCKS.length}`;
+    const titleNum = ['One','Two','Three','Four','Five','Six','Seven'][blockIdx];
+    $('#blockIntroTitle').innerHTML = `Block <em>${titleNum}</em>.`;
+
+    // Sub 说明根据 block 类型变化
+    let sub = '';
+    const role = CONFIG.BLOCKS[blockIdx].role;
+    if (role === 'target_practice' || role === 'reversed_target_practice') {
+      sub = `把屏幕上的<strong>词</strong>归到 <strong>${T[m.targetLeft + '_label']}</strong> 或 <strong>${T[m.targetRight + '_label']}</strong>。`;
+      if (role === 'reversed_target_practice') {
+        sub += `<br/><em style="color:var(--accent);">注意：左右两侧的类别已经对调。</em>`;
+      }
+    } else if (role === 'attribute_practice') {
+      sub = `把屏幕上的<strong>词</strong>归到 <strong>${T[m.attrLeft + '_label']}</strong> 或 <strong>${T[m.attrRight + '_label']}</strong>。`;
+    } else if (role === 'combined_practice' || role === 'combined_critical') {
+      sub = `每一侧现在对应<strong>两个</strong>类别。看到符合任一类别的词就按对应键。`;
+      if (role === 'combined_critical') {
+        sub = `本阶段是<strong>正式记录</strong>。请尽快、尽量准确。`;
+      }
+    } else if (role === 'reversed_combined_practice' || role === 'reversed_combined_critical') {
+      sub = `<em style="color:var(--accent);">类别配对已经反转</em>——每一侧现在对应<strong>新的</strong>两个类别。`;
+      if (role === 'reversed_combined_critical') {
+        sub = `本阶段是<strong>正式记录</strong>（反向配对）。请尽快、尽量准确。`;
+      }
+    }
+    $('#blockIntroSub').innerHTML = sub;
+
+    // 左右映射显示
+    function buildSide(targetCatKey, attrCatKey, useTarget, useAttr) {
+      let html = '';
+      if (useTarget) {
+        html += `<div class="mapping-cat target">${T[targetCatKey + '_label']}</div>`;
+      }
+      if (useTarget && useAttr) {
+        html += `<div class="mapping-or" style="margin:6px 0;">or 或</div>`;
+      }
+      if (useAttr) {
+        html += `<div class="mapping-cat attribute">${T[attrCatKey + '_label']}</div>`;
+      }
+      return html;
+    }
+    $('#mappingLeft').innerHTML  = buildSide(m.targetLeft,  m.attrLeft,  m.useTargets, m.useAttributes);
+    $('#mappingRight').innerHTML = buildSide(m.targetRight, m.attrRight, m.useTargets, m.useAttributes);
+
+    showPage('block-intro-page');
+  }
+
+  $('#startBlockBtn').addEventListener('click', startBlock);
+
+  function startBlock() {
+    state.trialsForBlock = generateTrialsForBlock(state.currentBlockIdx);
+    state.currentTrialIdxInBlock = 0;
+    state.blockStartTs = Date.now();
+
+    // 渲染顶部类别区
+    const m = getBlockMapping(state.currentBlockIdx);
+    const T = CONFIG.TOPIC;
+
+    function fillCatBar(prefix, targetCatKey, attrCatKey, useTarget, useAttr) {
+      const first  = $('#cat' + prefix + 'First');
+      const orEl   = $('#cat' + prefix + 'Or');
+      const second = $('#cat' + prefix + 'Second');
+
+      // 重置类
+      first.classList.remove('target','attribute');
+      second.classList.remove('target','attribute');
+
+      if (useTarget && useAttr) {
+        // 联合：target 在上、attribute 在下
+        first.textContent = T[targetCatKey + '_label'];
+        first.classList.add('target');
+        first.style.removeProperty('display');
+        orEl.style.removeProperty('display');
+        second.textContent = T[attrCatKey + '_label'];
+        second.classList.add('attribute');
+        second.style.removeProperty('display');
+      } else if (useTarget) {
+        first.textContent = T[targetCatKey + '_label'];
+        first.classList.add('target');
+        first.style.removeProperty('display');
+        orEl.style.display = 'none';
+        second.style.display = 'none';
+      } else if (useAttr) {
+        first.textContent = T[attrCatKey + '_label'];
+        first.classList.add('attribute');
+        first.style.removeProperty('display');
+        orEl.style.display = 'none';
+        second.style.display = 'none';
+      }
+    }
+    fillCatBar('Left',  m.targetLeft,  m.attrLeft,  m.useTargets, m.useAttributes);
+    fillCatBar('Right', m.targetRight, m.attrRight, m.useTargets, m.useAttributes);
+
+    // 重置错误数
+    state.errorsThisBlock = 0;
+    $('#hudErrors').textContent = '0';
+    $('#hudBlock').textContent = state.currentBlockIdx + 1;
+    $('#hudTotal').textContent = state.trialsForBlock.length;
+
+    showPage('task-page');
+    setTimeout(setupTrial, 350);   // 给 page 切换动画一些时间
+  }
+
+  /* =====================================================
+     TRIAL LIFECYCLE
+     ===================================================== */
+  function updateHUD() {
+    $('#hudTrial').textContent = state.currentTrialIdxInBlock + 1;
+    $('#hudProgress').style.width =
+      ((state.currentTrialIdxInBlock) / state.trialsForBlock.length * 100) + '%';
+  }
+
+  function setupTrial() {
+    const trial = state.trialsForBlock[state.currentTrialIdxInBlock];
+
+    state.locked              = false;
+    state.errorCountInTrial   = 0;
+    state.firstResponseTs     = 0;
+    state.firstResponseSide   = null;
+    state.currentTrial        = trial;
+
+    updateHUD();
+
+    // 隐藏错误标记
+    $('#errorMark').classList.remove('visible');
+
+    // 设置刺激
+    const stim = $('#stimulus');
+    stim.textContent = trial.word;
+    stim.className   = 'stimulus ' + (trial.type === 'target' ? 'target' : 'attribute');
+    stim.classList.remove('invisible');
+
+    // 记录 onset
+    state.stimulusOnsetTs = Date.now();
+  }
+
+  function handleResponse(side) {
+    if (state.locked) return;
+    const trial = state.currentTrial;
+    if (!trial) return;
+    const now = Date.now();
+    const correct = (side === trial.correctSide);
+
+    // 记录原子按键事件
+    state.keyEvents.push({
+      block:     state.currentBlockIdx + 1,
+      trial:     state.currentTrialIdxInBlock + 1,
+      side, correct: correct ? 1 : 0,
+      tMsSinceStart:    now - state.expStartTs,
+      tMsSinceStimulus: now - state.stimulusOnsetTs
+    });
+
+    if (state.firstResponseTs === 0) {
+      state.firstResponseTs   = now;
+      state.firstResponseSide = side;
+    }
+
+    if (correct) {
+      // 正确 —— 记录、清屏、进下一题
+      completeTrial(now);
+    } else {
+      // 错误 —— 显示红 ✕、播放错误音、不前进
+      state.errorCountInTrial++;
+      state.errorsThisBlock++;
+      $('#hudErrors').textContent = state.errorsThisBlock;
+
+      const errMark = $('#errorMark');
+      errMark.classList.remove('visible');
+      // 强制 reflow 以重启动画
+      void errMark.offsetWidth;
+      errMark.classList.add('visible');
+
+      playWrong();
+    }
+  }
+
+  function completeTrial(correctResponseTs) {
+    state.locked = true;
+
+    const trial = state.currentTrial;
+    const m     = getBlockMapping(state.currentBlockIdx);
+    const T     = CONFIG.TOPIC;
+
+    state.trials.push({
+      block:               state.currentBlockIdx + 1,
+      blockRole:           CONFIG.BLOCKS[state.currentBlockIdx].role,
+      blockCompatibility:  m.compatibility || '',          // '', 'compatible', 'incompatible'
+      trialInBlock:        state.currentTrialIdxInBlock + 1,
+
+      stimulusType:        trial.type,                      // 'target' / 'attribute'
+      stimulusCategory:    trial.category,                  // target1/target2/attr1/attr2
+      stimulusCategoryLabel: T[trial.category + '_label'],
+      word:                trial.word,
+
+      categoryLeft1:       m.useTargets    ? T[m.targetLeft  + '_label'] : '',
+      categoryLeft2:       (m.useTargets && m.useAttributes) ? T[m.attrLeft   + '_label'] : (m.useAttributes ? T[m.attrLeft  + '_label'] : ''),
+      categoryRight1:      m.useTargets    ? T[m.targetRight + '_label'] : '',
+      categoryRight2:      (m.useTargets && m.useAttributes) ? T[m.attrRight  + '_label'] : (m.useAttributes ? T[m.attrRight + '_label'] : ''),
+
+      correctSide:         trial.correctSide,
+      firstResponseSide:   state.firstResponseSide,
+      firstCorrect:        (state.firstResponseSide === trial.correctSide) ? 1 : 0,
+      errorCount:          state.errorCountInTrial,
+
+      rtFirstMs:           state.firstResponseTs - state.stimulusOnsetTs,
+      rtCorrectMs:         correctResponseTs    - state.stimulusOnsetTs,
+      rtMsSinceStart:      correctResponseTs    - state.expStartTs,
+      isoTimestamp:        new Date(state.stimulusOnsetTs).toISOString()
+    });
+
+    // 隐藏刺激与错误 mark
+    $('#errorMark').classList.remove('visible');
+    $('#stimulus').classList.add('invisible');
+
+    setTimeout(nextTrial, CONFIG.ITI_MS);
+  }
+
+  function nextTrial() {
+    state.currentTrialIdxInBlock++;
+    if (state.currentTrialIdxInBlock >= state.trialsForBlock.length) {
+      finishBlock();
+      return;
+    }
+    setupTrial();
+  }
+
+  function finishBlock() {
+    // 记录 block 元数据
+    const blockTrials = state.trials.filter(t => t.block === state.currentBlockIdx + 1);
+    const meanRT = blockTrials.length
+      ? blockTrials.reduce((s,t) => s + t.rtCorrectMs, 0) / blockTrials.length
+      : 0;
+    const accuracy = blockTrials.length
+      ? blockTrials.reduce((s,t) => s + t.firstCorrect, 0) / blockTrials.length
+      : 0;
+
+    state.blockMeta.push({
+      block:       state.currentBlockIdx + 1,
+      role:        CONFIG.BLOCKS[state.currentBlockIdx].role,
+      label:       CONFIG.BLOCKS[state.currentBlockIdx].label,
+      compatibility: getBlockMapping(state.currentBlockIdx).compatibility || '',
+      n:           blockTrials.length,
+      meanRtMs:    meanRT,
+      accuracy:    accuracy,
+      durationMs:  Date.now() - state.blockStartTs
+    });
+
+    playLevelUp();
+
+    // 进下一 block 或结束
+    state.currentBlockIdx++;
+    if (state.currentBlockIdx >= CONFIG.BLOCKS.length) {
+      finishExperiment();
+      return;
+    }
+    showBlockIntro();
+  }
+
+  /* =====================================================
+     KEYBOARD & TOUCH
+     ===================================================== */
+  document.addEventListener('keydown', (e) => {
+    // M 键：任何页面都可切换音效
+    if (e.key && e.key.toLowerCase() === 'm' && !e.target.matches('input,textarea')) {
+      e.preventDefault();
+      setSoundEnabled(!soundEnabled);
+      return;
+    }
+
+    // SPACE 键：在 block-intro 页开始 block
+    if (e.code === 'Space' &&
+        document.getElementById('block-intro-page').classList.contains('active') &&
+        !e.target.matches('input,textarea,button')) {
+      e.preventDefault();
+      startBlock();
+      return;
+    }
+
+    // E / I 键：仅在 task 页响应
+    if (!document.getElementById('task-page').classList.contains('active')) return;
+    if (state.locked) return;
+    const k = e.key.toLowerCase();
+    if (k === 'e') {
+      e.preventDefault();
+      handleResponse('left');
+    } else if (k === 'i') {
+      e.preventDefault();
+      handleResponse('right');
+    }
+  });
+
+  // 触屏区
+  document.querySelectorAll('#touchZones .touch-zone').forEach(zone => {
+    zone.addEventListener('click', (e) => {
+      if (state.locked) return;
+      handleResponse(zone.dataset.side);
+    });
+  });
+
+  /* =====================================================
+     D-SCORE COMPUTATION (Greenwald, Nosek & Banaji 2003)
+     使用"内置错误惩罚"版本（procedure 2）：
+       因为我们要求按对才能继续，rt_correct 已经包含了错误代价。
+     ===================================================== */
+  function computeDScore() {
+    // 仅用 B3, B4, B6, B7 的有效试次
+    const validTrials = state.trials.filter(t =>
+      [3,4,6,7].includes(t.block) && t.rtCorrectMs <= CONFIG.MAX_RT_MS
+    );
+
+    const byBlock = { 3:[], 4:[], 6:[], 7:[] };
+    validTrials.forEach(t => byBlock[t.block].push(t.rtCorrectMs));
+
+    const meanArr = arr => arr.length ? arr.reduce((s,x)=>s+x,0)/arr.length : NaN;
+    const sdArr = arr => {
+      if (arr.length < 2) return NaN;
+      const m = meanArr(arr);
+      const v = arr.reduce((s,x)=>s+(x-m)**2, 0) / (arr.length - 1);
+      return Math.sqrt(v);
+    };
+
+    const m3 = meanArr(byBlock[3]);
+    const m4 = meanArr(byBlock[4]);
+    const m6 = meanArr(byBlock[6]);
+    const m7 = meanArr(byBlock[7]);
+    const sd_36 = sdArr(byBlock[3].concat(byBlock[6]));
+    const sd_47 = sdArr(byBlock[4].concat(byBlock[7]));
+
+    // D > 0 ⇒ 偏好 target1（incompatible 比 compatible 慢）
+    const compFirst = (state.blockOrder === 'compatible_first');
+    let d_practice, d_critical;
+    if (compFirst) {
+      // B3, B4 = compatible; B6, B7 = incompatible
+      d_practice = (m6 - m3) / sd_36;
+      d_critical = (m7 - m4) / sd_47;
+    } else {
+      // B3, B4 = incompatible; B6, B7 = compatible
+      d_practice = (m3 - m6) / sd_36;
+      d_critical = (m4 - m7) / sd_47;
+    }
+    const d = (d_practice + d_critical) / 2;
+
+    // Compatible / incompatible block 的全部试次平均 RT（用于结果展示）
+    const compatBlocks  = compFirst ? [3,4] : [6,7];
+    const incompatBlocks = compFirst ? [6,7] : [3,4];
+    const compatRTs   = validTrials.filter(t => compatBlocks.includes(t.block)).map(t => t.rtCorrectMs);
+    const incompatRTs = validTrials.filter(t => incompatBlocks.includes(t.block)).map(t => t.rtCorrectMs);
+    const meanCompat   = meanArr(compatRTs);
+    const meanIncompat = meanArr(incompatRTs);
+
+    // 整体 accuracy（首次按键正确率）
+    const allTrialsAll = state.trials.length;
+    const accAll = allTrialsAll
+      ? state.trials.reduce((s,t) => s + t.firstCorrect, 0) / allTrialsAll
+      : 0;
+
+    // 数据质量标记
+    const fastTrials = state.trials.filter(t => t.rtCorrectMs < CONFIG.MIN_RT_MS).length;
+    const fastFlag   = (fastTrials / allTrialsAll) > 0.10;     // Greenwald 建议 >10% 慎用
+    const excludedTrials = state.trials.filter(t =>
+      [3,4,6,7].includes(t.block) && t.rtCorrectMs > CONFIG.MAX_RT_MS
+    ).length;
+
+    return {
+      d, d_practice, d_critical,
+      m3, m4, m6, m7, sd_36, sd_47,
+      meanCompatRT:   meanCompat,
+      meanIncompatRT: meanIncompat,
+      diffMs: meanIncompat - meanCompat,
+      compatBlocks, incompatBlocks,
+      accAll, fastTrials, fastFlag, excludedTrials
+    };
+  }
+
+  /* =====================================================
+     INTERPRETATION
+     ===================================================== */
+  function interpretD(d) {
+    const T = CONFIG.TOPIC;
+    const absd = Math.abs(d);
+    const target1 = T.target1_full || T.target1_label;
+    const target2 = T.target2_full || T.target2_label;
+    const attr1   = T.attr1_label;
+    const attr2   = T.attr2_label;
+
+    let strength;
+    if      (absd < 0.15)  strength = '几乎无偏好';
+    else if (absd < 0.35)  strength = '轻度偏好';
+    else if (absd < 0.65)  strength = '中等偏好';
+    else                   strength = '强烈偏好';
+
+    const direction = d > 0 ? target1 : target2;
+    const otherDir  = d > 0 ? target2 : target1;
+    const linkedAttr = d > 0 ? attr1 : attr1;     // 被偏好对象都关联到 attr1
+    // 实际上：D>0 表示「target1+attr1 联结更强」即 target1 与 attr1 关联更紧
+    //        D<0 表示「target2+attr1 联结更强」即 target2 与 attr1 关联更紧
+
+    let title, body;
+    if (absd < 0.15) {
+      title = `内隐偏好不明显`;
+      body  = `您对 <strong>${target1}</strong> 与 <strong>${target2}</strong> 的内隐评价大致中性。
+               兼容与不兼容条件下的反应时差异很小（<strong>${(d).toFixed(3)}</strong>），
+               不足以判定明显的内隐联结偏向。`;
+    } else {
+      title = `${strength} <em style="font-style:italic;">${direction}</em> 优于 <em style="font-style:italic;">${otherDir}</em>`;
+      body  = `D 值为 <strong>${d.toFixed(3)}</strong>，方向为 ${direction}。
+               这意味着在反应时层面，您把 <strong>${direction}</strong> 与 <strong>${attr1}</strong> 的联结，
+               比 <strong>${otherDir}</strong> 与 <strong>${attr1}</strong> 的联结要更紧密。
+               <br/><br/>
+               <span style="opacity:0.7;">注：D-score 反映的是"联结的相对自动激活强度"，不等同于"显性态度"或"行为意图"。
+               单次测量也可能受疲劳、注意力等因素影响。</span>`;
+    }
+    return { strength, direction, title, body };
+  }
+
+  /* =====================================================
+     RESULTS PAGE RENDERING
+     ===================================================== */
+  function finishExperiment() {
+    showPage('results-page');
+    renderResults();
+  }
+
+  function renderResults() {
+    const r = computeDScore();
+    const interp = interpretD(r.d);
+
+    // D-score 主显示
+    const dStr = (r.d >= 0 ? '+' : '') + r.d.toFixed(2);
+    const dEl  = $('#dScoreValue');
+    dEl.textContent = dStr;
+    dEl.classList.remove('warm','cool');
+    if (Math.abs(r.d) >= 0.15) {
+      dEl.classList.add(r.d > 0 ? 'warm' : 'cool');
+    }
+
+    $('#dInterpTitle').innerHTML = interp.title;
+    $('#dInterpBody').innerHTML  = interp.body;
+
+    // 4 个汇总卡
+    $('#sumCompatRT').textContent   = isNaN(r.meanCompatRT)   ? '—' : Math.round(r.meanCompatRT);
+    $('#sumIncompatRT').textContent = isNaN(r.meanIncompatRT) ? '—' : Math.round(r.meanIncompatRT);
+    $('#sumRTDiff').textContent     = isNaN(r.diffMs) ? '—' :
+      (r.diffMs >= 0 ? '+' : '') + Math.round(r.diffMs);
+    $('#sumAcc').textContent        = (r.accAll * 100).toFixed(1) + '%';
+
+    // 折线图
+    renderRTChart();
+  }
+
+  function renderRTChart() {
+    const svg = $('#rtChart');
+    svg.innerHTML = '';
+
+    const blocks = state.blockMeta;
+    if (!blocks.length) return;
+
+    const W = 800, H = 260, PAD_L = 50, PAD_R = 24, PAD_T = 24, PAD_B = 50;
+    const innerW = W - PAD_L - PAD_R;
+    const innerH = H - PAD_T - PAD_B;
+
+    const maxRT = Math.max(...blocks.map(b => b.meanRtMs)) * 1.15;
+    const minRT = Math.min(...blocks.map(b => b.meanRtMs)) * 0.85;
+
+    const xFor = i => PAD_L + (i + 0.5) / blocks.length * innerW;
+    const yFor = rt => PAD_T + (1 - (rt - minRT) / (maxRT - minRT)) * innerH;
+
+    const ns = 'http://www.w3.org/2000/svg';
+    const create = (tag, attrs) => {
+      const el = document.createElementNS(ns, tag);
+      Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v));
+      return el;
+    };
+
+    // Y 轴
+    svg.appendChild(create('line', {
+      x1: PAD_L, y1: PAD_T, x2: PAD_L, y2: PAD_T + innerH,
+      stroke: '#0A0A0A', 'stroke-width': 1
+    }));
+    // X 轴
+    svg.appendChild(create('line', {
+      x1: PAD_L, y1: PAD_T + innerH, x2: PAD_L + innerW, y2: PAD_T + innerH,
+      stroke: '#0A0A0A', 'stroke-width': 1
+    }));
+
+    // Y 刻度（4 等分）
+    for (let k = 0; k <= 4; k++) {
+      const rt = minRT + (maxRT - minRT) * k / 4;
+      const y = yFor(rt);
+      svg.appendChild(create('line', {
+        x1: PAD_L - 4, y1: y, x2: PAD_L, y2: y,
+        stroke: '#0A0A0A', 'stroke-width': 1
+      }));
+      const txt = create('text', {
+        x: PAD_L - 8, y: y + 4,
+        'text-anchor': 'end',
+        'font-family': 'JetBrains Mono, monospace',
+        'font-size': '10', fill: '#9E9E9E'
+      });
+      txt.textContent = Math.round(rt) + ' ms';
+      svg.appendChild(txt);
+    }
+
+    // 兼容性背景
+    blocks.forEach((b, i) => {
+      if (!b.compatibility) return;
+      const x = PAD_L + (i / blocks.length) * innerW;
+      const w = innerW / blocks.length;
+      const fill = b.compatibility === 'compatible' ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)';
+      svg.appendChild(create('rect', {
+        x, y: PAD_T, width: w, height: innerH, fill
+      }));
+    });
+
+    // 折线 + 点
+    let pathD = '';
+    blocks.forEach((b, i) => {
+      const x = xFor(i), y = yFor(b.meanRtMs);
+      pathD += (i === 0 ? 'M' : 'L') + x + ',' + y + ' ';
+    });
+    svg.appendChild(create('path', {
+      d: pathD, fill: 'none', stroke: '#0A0A0A', 'stroke-width': 1.6
+    }));
+
+    // X 标签 + 数据点
+    blocks.forEach((b, i) => {
+      const x = xFor(i), y = yFor(b.meanRtMs);
+      // 点
+      const isCompat = b.compatibility === 'compatible';
+      const isIncompat = b.compatibility === 'incompatible';
+      const dotColor = isCompat ? '#16A34A' : (isIncompat ? '#DC2626' : '#0A0A0A');
+      svg.appendChild(create('circle', {
+        cx: x, cy: y, r: 4.5,
+        fill: dotColor, stroke: '#FFFFFF', 'stroke-width': 1.5
+      }));
+      // 数值
+      const label = create('text', {
+        x, y: y - 12, 'text-anchor': 'middle',
+        'font-family': 'JetBrains Mono, monospace',
+        'font-size': '10.5', 'font-weight': '500', fill: '#0A0A0A'
+      });
+      label.textContent = Math.round(b.meanRtMs);
+      svg.appendChild(label);
+      // X 轴 block 编号
+      const blockLabel = create('text', {
+        x, y: PAD_T + innerH + 18, 'text-anchor': 'middle',
+        'font-family': 'JetBrains Mono, monospace',
+        'font-size': '10', fill: '#0A0A0A',
+        'letter-spacing': '0.05em'
+      });
+      blockLabel.textContent = 'B' + b.block;
+      svg.appendChild(blockLabel);
+      // 兼容性小标签
+      if (b.compatibility) {
+        const t = create('text', {
+          x, y: PAD_T + innerH + 34, 'text-anchor': 'middle',
+          'font-family': 'JetBrains Mono, monospace',
+          'font-size': '8.5', fill: dotColor,
+          'letter-spacing': '0.1em', 'text-transform': 'uppercase'
+        });
+        t.textContent = b.compatibility === 'compatible' ? 'COMPAT' : 'INCOMPAT';
+        svg.appendChild(t);
+      }
+    });
+  }
+
+  /* =====================================================
+     CSV EXPORT
+     ===================================================== */
+  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+  function nowStamp() {
+    const d = new Date();
+    return d.getFullYear() + pad2(d.getMonth()+1) + pad2(d.getDate())
+      + '_' + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
+  }
+  function sanitizeForFilename(s) {
+    return String(s).replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 32) || 'anon';
+  }
+  function escapeCSV(v) {
+    if (v === null || v === undefined) return '';
+    const s = String(v);
+    if (/[,"\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+
+  $('#exportBtn').addEventListener('click', () => {
+    const r = computeDScore();
+    const interp = interpretD(r.d);
+    const T = CONFIG.TOPIC;
+
+    const rows = [];
+
+    // —— 主表
+    rows.push([
+      'participant_id','block_order','block','block_role','block_compatibility',
+      'trial_in_block','stimulus_type','stimulus_category','stimulus_category_label',
+      'word','category_left_1','category_left_2','category_right_1','category_right_2',
+      'correct_side','first_response_side','first_correct','error_count',
+      'rt_first_ms','rt_correct_ms','rt_ms_since_start','iso_timestamp'
+    ]);
+    state.trials.forEach(t => {
+      rows.push([
+        state.participantId, state.blockOrder, t.block, t.blockRole, t.blockCompatibility,
+        t.trialInBlock, t.stimulusType, t.stimulusCategory, t.stimulusCategoryLabel,
+        t.word, t.categoryLeft1, t.categoryLeft2, t.categoryRight1, t.categoryRight2,
+        t.correctSide, t.firstResponseSide, t.firstCorrect, t.errorCount,
+        t.rtFirstMs, t.rtCorrectMs, t.rtMsSinceStart, t.isoTimestamp
+      ]);
+    });
+
+    // —— Block 汇总
+    rows.push([]);
+    rows.push(['# BLOCK SUMMARY · 各 block 平均']);
+    rows.push(['block','role','label','compatibility','n_trials','mean_rt_ms','accuracy','duration_ms']);
+    state.blockMeta.forEach(b => {
+      rows.push([
+        b.block, b.role, b.label, b.compatibility, b.n,
+        b.meanRtMs.toFixed(2), b.accuracy.toFixed(4), b.durationMs
+      ]);
+    });
+
+    // —— D-score
+    rows.push([]);
+    rows.push(['# D-SCORE · Greenwald, Nosek & Banaji (2003)']);
+    rows.push(['metric','value']);
+    rows.push(['d_score',         r.d.toFixed(4)]);
+    rows.push(['d_practice_b3b6', r.d_practice.toFixed(4)]);
+    rows.push(['d_critical_b4b7', r.d_critical.toFixed(4)]);
+    rows.push(['mean_rt_b3', r.m3.toFixed(2)]);
+    rows.push(['mean_rt_b4', r.m4.toFixed(2)]);
+    rows.push(['mean_rt_b6', r.m6.toFixed(2)]);
+    rows.push(['mean_rt_b7', r.m7.toFixed(2)]);
+    rows.push(['sd_b3_b6', r.sd_36.toFixed(2)]);
+    rows.push(['sd_b4_b7', r.sd_47.toFixed(2)]);
+    rows.push(['mean_rt_compatible',   r.meanCompatRT.toFixed(2)]);
+    rows.push(['mean_rt_incompatible', r.meanIncompatRT.toFixed(2)]);
+    rows.push(['rt_diff_ms', r.diffMs.toFixed(2)]);
+    rows.push(['interpretation_strength', interp.strength]);
+    rows.push(['interpretation_direction', r.d > 0 ? T.target1_full : T.target2_full]);
+
+    // —— 元数据
+    rows.push([]);
+    rows.push(['# OVERALL · 元数据']);
+    rows.push(['participant_id', state.participantId]);
+    rows.push(['block_order', state.blockOrder]);
+    rows.push(['compatible_blocks', '[' + r.compatBlocks.join(';') + ']']);
+    rows.push(['incompatible_blocks', '[' + r.incompatBlocks.join(';') + ']']);
+    rows.push(['target1_label', T.target1_label]);
+    rows.push(['target1_items', T.target1_items.join(';')]);
+    rows.push(['target2_label', T.target2_label]);
+    rows.push(['target2_items', T.target2_items.join(';')]);
+    rows.push(['attr1_label', T.attr1_label]);
+    rows.push(['attr1_items', T.attr1_items.join(';')]);
+    rows.push(['attr2_label', T.attr2_label]);
+    rows.push(['attr2_items', T.attr2_items.join(';')]);
+    rows.push(['total_trials', state.trials.length]);
+    rows.push(['accuracy_all', r.accAll.toFixed(4)]);
+    rows.push(['fast_trials_lt_300ms', r.fastTrials]);
+    rows.push(['fast_trial_flag_gt_10pct', r.fastFlag ? '1' : '0']);
+    rows.push(['excluded_trials_gt_10000ms', r.excludedTrials]);
+    rows.push(['experiment_start_iso', new Date(state.expStartTs).toISOString()]);
+    rows.push(['experiment_end_iso',   new Date().toISOString()]);
+    rows.push(['user_agent', navigator.userAgent]);
+
+    // —— 原子按键事件
+    rows.push([]);
+    rows.push(['# RAW KEY EVENTS · 原子按键']);
+    rows.push(['block','trial','side','correct','t_ms_since_start','t_ms_since_stimulus']);
+    state.keyEvents.forEach(e => {
+      rows.push([e.block, e.trial, e.side, e.correct, e.tMsSinceStart, e.tMsSinceStimulus]);
+    });
+
+    // 转 CSV，加 BOM
+    const csv = rows.map(r => r.map(escapeCSV).join(',')).join('\r\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'IAT_' + sanitizeForFilename(state.participantId) + '_' + nowStamp() + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+  });
+
+  /* =====================================================
+     RESTART
+     ===================================================== */
+  $('#restartBtn').addEventListener('click', () => {
+    if (!confirm('确定要重新开始？数据将被清空（请先导出 CSV）。')) return;
+    // 完整重置
+    state.participantId = '';
+    state.blockOrder = '';
+    state.currentBlockIdx = 0;
+    state.currentTrialIdxInBlock = 0;
+    state.trialsForBlock = [];
+    state.currentTrial = null;
+    state.locked = false;
+    state.errorCountInTrial = 0;
+    state.errorsThisBlock = 0;
+    state.firstResponseTs = 0;
+    state.firstResponseSide = null;
+    state.expStartTs = 0;
+    state.blockStartTs = 0;
+    state.trials = [];
+    state.keyEvents = [];
+    state.blockMeta = [];
+    $('#participantInput').value = '';
+    showPage('welcome-page');
+  });
+
+  /* =====================================================
+     INIT
+     ===================================================== */
+  // 浏览器自动播放策略：在用户首次手势后才能初始化 AudioContext
+  const primeAudio = () => { if (soundEnabled) ensureAudio(); };
+  document.addEventListener('click', primeAudio, { once: false });
+  document.addEventListener('keydown', primeAudio, { once: false });
+
+  // 防止意外离开
+  window.addEventListener('beforeunload', (e) => {
+    if (state.trials.length > 0 &&
+        !document.getElementById('results-page').classList.contains('active') &&
+        !document.getElementById('welcome-page').classList.contains('active')) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  setTimeout(() => $('#participantInput').focus(), 200);
+})();
+</script>
+
+</body>
+</html>
