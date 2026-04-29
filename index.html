@@ -166,6 +166,50 @@
   .field-input:focus { outline: none; border-bottom-color: var(--accent); }
   .field-error { font-family: var(--font-mono); font-size: 11px; color: var(--error); margin-top: 8px; min-height: 16px; letter-spacing: 0.02em; }
 
+  /* —— 多字段表单 —— */
+  .form-note {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-faint); letter-spacing: 0.16em;
+    text-transform: uppercase; margin: -16px 0 24px;
+  }
+  .form-fields { display: flex; flex-direction: column; gap: 22px; }
+  .form-grid-2col {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+  }
+  .field-select {
+    width: 100%; padding: 12px 28px 12px 14px; background: transparent;
+    border: none; border-bottom: 2px solid var(--ink);
+    border-radius: 0;
+    font-family: var(--font-mono); font-size: 14px;
+    color: var(--ink); letter-spacing: 0.03em;
+    -webkit-appearance: none; -moz-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%231A1814' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 4px center;
+    cursor: pointer;
+  }
+  .field-select:focus { outline: none; border-bottom-color: var(--accent); }
+  .radio-group {
+    display: flex; gap: 6px; flex-wrap: wrap; padding-top: 6px;
+  }
+  .radio-chip {
+    cursor: pointer; user-select: none;
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em;
+    padding: 7px 14px;
+    border: 1px solid var(--rule);
+    background: transparent; color: var(--ink-soft);
+    transition: all 0.15s ease;
+    position: relative;
+  }
+  .radio-chip:hover { border-color: var(--ink); color: var(--ink); }
+  .radio-chip input {
+    position: absolute; opacity: 0; pointer-events: none;
+    width: 0; height: 0;
+  }
+  .radio-chip.checked,
+  .radio-chip:has(input:checked) {
+    background: var(--ink); color: var(--paper); border-color: var(--ink);
+  }
+
   /* —— 说明页 —— */
   .instr-wrap { max-width: 940px; margin: 0 auto; padding: 88px 56px 64px; }
   .instr-grid {
@@ -548,6 +592,10 @@
     .instr-card-title { font-size: 16px; }
     .instr-card p { font-size: 14px; }
 
+    /* 表单在手机端单列 */
+    .form-grid-2col { grid-template-columns: 1fr; gap: 22px; }
+    .radio-chip { padding: 8px 14px; font-size: 12.5px; }
+
     /* Block intro 在手机端 */
     .key-mapping-display { grid-template-columns: 1fr; gap: 12px; }
     .mapping-side { min-height: 0; padding: 18px; }
@@ -620,9 +668,55 @@
 
     <div class="welcome-form">
       <div class="form-eyebrow">PARTICIPANT REGISTRATION</div>
-      <h2 class="form-title">请输入被试编号</h2>
-      <label class="field-label" for="participantInput">Participant ID</label>
-      <input type="text" id="participantInput" class="field-input" placeholder="例如 P001" maxlength="40" autocomplete="off" spellcheck="false" />
+      <h2 class="form-title">被试基本信息</h2>
+      <p class="form-note">— 以下信息均可不填，留空即跳过该项 —</p>
+
+      <div class="form-fields">
+        <div class="form-row">
+          <label class="field-label" for="participantInput">Participant ID · 被试编号</label>
+          <input type="text" id="participantInput" class="field-input" placeholder="例如 P001（可不填）" maxlength="40" autocomplete="off" spellcheck="false" />
+        </div>
+
+        <div class="form-row form-grid-2col">
+          <div>
+            <label class="field-label">Gender · 性别</label>
+            <div class="radio-group" data-group="gender">
+              <label class="radio-chip"><input type="radio" name="gender" value="male"><span>男</span></label>
+              <label class="radio-chip"><input type="radio" name="gender" value="female"><span>女</span></label>
+              <label class="radio-chip"><input type="radio" name="gender" value="other"><span>其他</span></label>
+              <label class="radio-chip"><input type="radio" name="gender" value="prefer_not_to_say"><span>不透露</span></label>
+            </div>
+          </div>
+          <div>
+            <label class="field-label" for="ageInput">Age · 年龄</label>
+            <input type="number" id="ageInput" class="field-input" placeholder="例如 22" min="1" max="120" autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="form-row form-grid-2col">
+          <div>
+            <label class="field-label">Handedness · 利手</label>
+            <div class="radio-group" data-group="hand">
+              <label class="radio-chip"><input type="radio" name="hand" value="right"><span>右</span></label>
+              <label class="radio-chip"><input type="radio" name="hand" value="left"><span>左</span></label>
+              <label class="radio-chip"><input type="radio" name="hand" value="both"><span>双</span></label>
+            </div>
+          </div>
+          <div>
+            <label class="field-label" for="eduInput">Education · 教育程度</label>
+            <select id="eduInput" class="field-select">
+              <option value="">— 不填写 —</option>
+              <option value="middle_school">初中及以下</option>
+              <option value="high_school">高中</option>
+              <option value="college">大学 / 大专</option>
+              <option value="master">硕士</option>
+              <option value="doctorate">博士及以上</option>
+              <option value="other">其他</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div class="field-error" id="idError"></div>
       <button class="btn btn-arrow" id="toInstructionsBtn" style="margin-top:24px; width:100%; justify-content:center;">
         Begin · 继续
@@ -922,7 +1016,12 @@
      STATE
      ===================================================== */
   const state = {
-    participantId:            '',
+    participantId:            '',     // 实际用于文件名/数据的编号（可能为自动生成的 ANON_xxx）
+    participantIdProvided:    false,  // 用户是否实际填写了 ID
+    participantGender:        '',     // 'male' | 'female' | 'other' | 'prefer_not_to_say' | ''
+    participantAge:           '',     // 数字字符串或 ''
+    participantHandedness:    '',     // 'right' | 'left' | 'both' | ''
+    participantEducation:     '',     // 'middle_school' | 'high_school' | 'college' | 'master' | 'doctorate' | 'other' | ''
     blockOrder:               '',     // 'compatible_first' | 'incompatible_first'
 
     currentBlockIdx:          0,      // 0..6
@@ -1159,17 +1258,63 @@
 
   /* =====================================================
      PAGE 1 → 2
+     收集被试信息（全部可选）
      ===================================================== */
+  // 给所有 radio-chip 加上点击高亮（保持兼容老浏览器）
+  document.querySelectorAll('.radio-group').forEach(group => {
+    group.addEventListener('change', () => {
+      group.querySelectorAll('.radio-chip').forEach(chip => {
+        const inp = chip.querySelector('input');
+        chip.classList.toggle('checked', !!inp && inp.checked);
+      });
+    });
+  });
+
   $('#toInstructionsBtn').addEventListener('click', () => {
-    const v = $('#participantInput').value.trim();
     const errEl = $('#idError');
-    if (!v) { errEl.textContent = '请输入被试编号'; $('#participantInput').focus(); return; }
-    if (v.length > 40) { errEl.textContent = '编号过长（最多 40 字符）'; return; }
     errEl.textContent = '';
-    state.participantId = v;
+
+    // —— 编号（可选）
+    const idRaw = $('#participantInput').value.trim();
+    if (idRaw.length > 40) {
+      errEl.textContent = '编号过长（最多 40 字符）';
+      $('#participantInput').focus();
+      return;
+    }
+    state.participantIdProvided = idRaw.length > 0;
+    state.participantId = idRaw || ('ANON_' + nowStamp());
+
+    // —— 性别（可选）
+    const g = document.querySelector('input[name="gender"]:checked');
+    state.participantGender = g ? g.value : '';
+
+    // —— 年龄（可选；填了就校验范围）
+    const ageRaw = $('#ageInput').value.trim();
+    if (ageRaw) {
+      const ageNum = Number(ageRaw);
+      if (!Number.isFinite(ageNum) || ageNum < 1 || ageNum > 120 || !Number.isInteger(ageNum)) {
+        errEl.textContent = '年龄请输入 1–120 之间的整数（或留空）';
+        $('#ageInput').focus();
+        return;
+      }
+      state.participantAge = String(ageNum);
+    } else {
+      state.participantAge = '';
+    }
+
+    // —— 利手（可选）
+    const h = document.querySelector('input[name="hand"]:checked');
+    state.participantHandedness = h ? h.value : '';
+
+    // —— 教育程度（可选）
+    state.participantEducation = $('#eduInput').value || '';
+
     showPage('instructions-page');
   });
   $('#participantInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') $('#toInstructionsBtn').click();
+  });
+  $('#ageInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') $('#toInstructionsBtn').click();
   });
 
@@ -1851,6 +1996,11 @@
     rows.push([]);
     rows.push(['# OVERALL · 元数据']);
     rows.push(['participant_id', state.participantId]);
+    rows.push(['participant_id_provided', state.participantIdProvided ? '1' : '0']);
+    rows.push(['participant_gender', state.participantGender || '']);
+    rows.push(['participant_age', state.participantAge || '']);
+    rows.push(['participant_handedness', state.participantHandedness || '']);
+    rows.push(['participant_education', state.participantEducation || '']);
     rows.push(['block_order', state.blockOrder]);
     rows.push(['compatible_blocks', '[' + r.compatBlocks.join(';') + ']']);
     rows.push(['incompatible_blocks', '[' + r.incompatBlocks.join(';') + ']']);
@@ -1898,6 +2048,11 @@
     if (!confirm('确定要重新开始？数据将被清空（请先导出 CSV）。')) return;
     // 完整重置
     state.participantId = '';
+    state.participantIdProvided = false;
+    state.participantGender = '';
+    state.participantAge = '';
+    state.participantHandedness = '';
+    state.participantEducation = '';
     state.blockOrder = '';
     state.currentBlockIdx = 0;
     state.currentTrialIdxInBlock = 0;
@@ -1913,7 +2068,13 @@
     state.trials = [];
     state.keyEvents = [];
     state.blockMeta = [];
+    // 清空表单
     $('#participantInput').value = '';
+    $('#ageInput').value = '';
+    $('#eduInput').value = '';
+    document.querySelectorAll('input[name="gender"], input[name="hand"]').forEach(r => r.checked = false);
+    document.querySelectorAll('.radio-chip').forEach(c => c.classList.remove('checked'));
+    $('#idError').textContent = '';
     showPage('welcome-page');
   });
 
